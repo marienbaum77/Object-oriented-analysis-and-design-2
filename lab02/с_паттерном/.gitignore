@@ -1,0 +1,10 @@
+# Папки сборки
+build
+out
+
+# Настройки Qt Creator
+.user
+.qtcreator
+
+# Временные файлы
+.json
