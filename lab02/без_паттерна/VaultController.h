@@ -9,46 +9,34 @@ class VaultController : public QObject {
 public:
     explicit VaultController(QObject *parent = nullptr) : QObject(parent) {}
 
-    Q_INVOKABLE QVariantMap calculateFolderStats(Folder* folder) {
-        int notesCount = 0;
-        int charsCount = 0;
-
-        for (Note* note : folder->notes) {
-            notesCount++;
-            charsCount += note->m_content.length();
+    QVariantMap globalStats() const {
+        int n = 0, w = 0, c = 0;
+        for (auto r : m_roots) {
+            if (Folder* f = qobject_cast<Folder*>(r)) {
+                auto s = f->getFolderStats();
+                n += s["notes"].toInt(); w += s["words"].toInt(); c += s["chars"].toInt();
+            } else if (Note* note = qobject_cast<Note*>(r)) {
+                auto s = note->getNoteStats();
+                n += s["notes"].toInt(); w += s["words"].toInt(); c += s["chars"].toInt();
+            }
         }
-
-        for (Folder* sub : folder->subFolders) {
-            QVariantMap subStats = calculateFolderStats(sub);
-            notesCount += subStats["notes"].toInt();
-            charsCount += subStats["chars"].toInt();
-        }
-
-        return { {"notes", notesCount}, {"chars", charsCount} };
+        return { {"notes", n}, {"words", w}, {"chars", c} };
     }
 
-   Q_INVOKABLE void deleteItem(QObject* item) {
+    Q_INVOKABLE void deleteItem(QObject* item) {
         if (!item) return;
-
+        
+        Folder* parentFolder = qobject_cast<Folder*>(item->parent());
+        
         if (Note* n = qobject_cast<Note*>(item)) {
-            Folder* parent = qobject_cast<Folder*>(n->parent());
-            if (parent) {
-                parent->notes.removeAll(n);
-            }
+            if (parentFolder) parentFolder->m_notes.removeAll(n);
             n->deleteLater();
-        } 
-        else if (Folder* f = qobject_cast<Folder*>(item)) {
-            Folder* parent = qobject_cast<Folder*>(f->parent());
-            if (parent) {
-                parent->subFolders.removeAll(f);
-            } else {
-                m_roots.removeAll(f);
-            }
+        } else if (Folder* f = qobject_cast<Folder*>(item)) {
+            if (parentFolder) parentFolder->m_subFolders.removeAll(f);
+            else m_roots.removeAll(f);
             f->deleteLater();
         }
-        
         emit rootChanged();
-        save(); 
     }
 
     Q_INVOKABLE QJsonObject serializeFolder(Folder* folder) {
