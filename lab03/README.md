@@ -23,7 +23,7 @@
 
 ### 3. Диаграмма классов
 
-`![Diagram](classd.png)`*
+![Diagram](classd.png)
 
 ### 4. Вывод
 
