@@ -1,33 +1,33 @@
-# pipeline.py
-from __future__ import annotations
-
-import abc
-from typing import Optional
-
-from moex_chain_trader.context import TradeContext
-
-
-class BaseHandler(abc.ABC):
-    """Abstract handler in the Chain of Responsibility pattern."""
+# pipeline.py - новый вариант
+class Pipeline:
+    """Facade for Chain of Responsibility."""
     
-    def __init__(self):
-        self._next_handler: Optional[BaseHandler] = None
+    def __init__(self, first_handler: Optional[BaseHandler] = None):
+        self._first_handler = first_handler
     
-    def set_next(self, handler: BaseHandler) -> BaseHandler:
-        """Set the next handler in the chain and return it for chaining."""
-        self._next_handler = handler
-        return handler
-    
-    def handle(self, ctx: TradeContext) -> None:
-        """Process the context or pass to next handler."""
-        if not ctx.stop_chain:
-            self.process(ctx)
+    @staticmethod
+    def create_chain(handlers: list[BaseHandler]) -> Pipeline:
+        """Create a chain from a list of handlers."""
+        if not handlers:
+            return Pipeline()
         
-        # Pass to next handler if chain shouldn't stop
-        if self._next_handler and not ctx.stop_chain:
-            self._next_handler.handle(ctx)
+        first = handlers[0]
+        current = first
+        
+        for handler in handlers[1:]:
+            current.set_next(handler)
+            current = handler
+        
+        return Pipeline(first)
     
-    @abc.abstractmethod
-    def process(self, ctx: TradeContext) -> None:
-        """Concrete processing logic to be implemented by subclasses."""
-        pass
+    def run(self, ctx: TradeContext, *, reset_stop: bool = True, clear_messages: bool = True) -> None:
+        """Run the chain."""
+        if reset_stop:
+            ctx.stop_chain = False
+            ctx.stop_reason = None
+        if clear_messages:
+            ctx.status_messages.clear()
+        ctx.last_handler = None
+        
+        if self._first_handler:
+            self._first_handler.handle(ctx)
